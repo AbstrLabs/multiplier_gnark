@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
@@ -16,11 +18,12 @@ type Circuit struct {
 }
 
 func (circuit *Circuit) Define(api frontend.API) error {
-	x := api.Add(api.Mul(circuit.A, circuit.A), circuit.B)
+	var V [N]frontend.Variable
+	V[0] = api.Add(api.Mul(circuit.A, circuit.A), circuit.B)
 	for i := 1; i < N; i++ {
-		x = api.Add(api.Mul(x, x), circuit.B)
+		V[i] = api.Add(api.Mul(V[i-1], V[i-1]), circuit.B)
 	}
-	api.AssertIsEqual(circuit.C, x)
+	api.AssertIsEqual(circuit.C, V[N-1])
 
 	return nil
 }
@@ -31,10 +34,24 @@ func main() {
 	if err != nil {
 		panic("compile failed")
 	}
+
+	f, err := os.Create("circuit")
+	defer f.Close()
+	r1cs.WriteTo(f)
+
 	pk, vk, err := groth16.Setup(r1cs)
 	if err != nil {
 		panic("setup failed")
 	}
+
+	f2, err := os.Create("pk")
+	defer f2.Close()
+	pk.WriteTo(f2)
+
+	f3, err := os.Create("vk")
+	defer f3.Close()
+	vk.WriteTo(f3)
+
 	var witness Circuit
 	witness.A = 666
 	witness.B = 233
