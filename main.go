@@ -7,18 +7,20 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-// Circuit defines a pre-image knowledge proof
-// mimc(secret preImage) = public hash
+const N int = 13000
+
 type Circuit struct {
-	PreImage frontend.Variable
-	Hash     frontend.Variable `gnark:",public"`
+	A frontend.Variable
+	B frontend.Variable
+	C frontend.Variable `gnark:",public"`
 }
 
-// Define declares the circuit's constraints
 func (circuit *Circuit) Define(api frontend.API) error {
-	// hash function
-	x := api.Mul(circuit.PreImage, circuit.PreImage)
-	api.AssertIsEqual(circuit.Hash, x)
+	x := api.Add(api.Mul(circuit.A, circuit.A), circuit.B)
+	for i := 1; i < N; i++ {
+		x = api.Add(api.Mul(x, x), circuit.B)
+	}
+	api.AssertIsEqual(circuit.C, x)
 
 	return nil
 }
@@ -29,18 +31,22 @@ func main() {
 	if err != nil {
 		panic("compile failed")
 	}
-	pk, _, err := groth16.Setup(r1cs)
+	pk, vk, err := groth16.Setup(r1cs)
 	if err != nil {
 		panic("setup failed")
 	}
 	var witness Circuit
-	witness.Hash = 42 * 42
-	witness.PreImage = 42
+	witness.A = 666
+	witness.B = 233
+	witness.C = "6793544489128382459281307073994348887771341450407551491096489485513352038568"
 
-	_, err = groth16.Prove(r1cs, pk, &witness)
+	proof, err := groth16.Prove(r1cs, pk, &witness)
 	if err != nil {
 		panic("prove failed")
 	}
 
-	// err := groth16.Verify(proof, vk, publicWitness)
+	err = groth16.Verify(proof, vk, &witness)
+	if err != nil {
+		panic("verification failed")
+	}
 }
