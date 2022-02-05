@@ -13,7 +13,7 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-const N int = 13000000
+const N int = 13000
 
 type Circuit struct {
 	A frontend.Variable
@@ -24,12 +24,16 @@ type Circuit struct {
 func (circuit *Circuit) Define(api frontend.API) error {
 	var V [N]frontend.Variable
 	V[0] = api.Add(api.Mul(circuit.A, circuit.A), circuit.B)
+	start := api.Tag("start")
 	for i := 1; i < N; i++ {
 		V[i] = api.Add(api.Mul(V[i-1], V[i-1]), circuit.B)
+//         temp := api.Tag(string(i))
+//         api.AddCounter(start, temp)
 	}
-	api.Println(V[N-1])
+// 	api.Println(V[N-1])
+	end := api.Tag("end")
+    api.AddCounter(start, end)
 	api.AssertIsEqual(circuit.C, V[N-1])
-
 	return nil
 }
 
@@ -40,6 +44,11 @@ func setup() {
 		panic("compile failed")
 	}
 
+	counters := r1cs.GetCounters()
+	for _, c := range counters {
+        fmt.Println(c)
+    }
+
 	f, err := os.Create("circuit")
 	defer f.Close()
 	r1cs.WriteTo(f)
@@ -49,7 +58,6 @@ func setup() {
 		panic("setup failed")
 	}
 
-	println(r1cs.GetNbConstraints())
 	f2, err := os.Create("pk")
 	defer f2.Close()
 	pk.WriteRawTo(f2)
@@ -58,20 +66,30 @@ func setup() {
 	defer f3.Close()
 	vk.WriteTo(f3)
 
-	var witness Circuit
-	witness.A = 666
-	witness.B = 233
-	// N = 13000
-	// witness.C = "6793544489128382459281307073994348887771341450407551491096489485513352038568"
-	// N = 13000000
-	witness.C = "11627185319010103288157029572521291604665626512789572484375095826433360489871"
+	var w Circuit
+	w.A = 666
+	w.B = 233
+// 	N = 13000
+	w.C = "6793544489128382459281307073994348887771341450407551491096489485513352038568"
+// 	N = 13000000
+// 	w.C = "11627185319010103288157029572521291604665626512789572484375095826433360489871"
 
-	proof, err := groth16.Prove(r1cs, pk, &witness)
+    witnessFull, err := frontend.NewWitness(&w, ecc.BN254)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    witnessPublic, err := frontend.NewWitness(&w, ecc.BN254, frontend.PublicOnly())
+    if err != nil {
+        log.Fatal(err)
+    }
+
+	proof, err := groth16.Prove(r1cs, pk, witnessFull)
 	if err != nil {
 		panic("prove failed")
 	}
 
-	err = groth16.Verify(proof, vk, &witness)
+	err = groth16.Verify(proof, vk, witnessPublic)
 	if err != nil {
 		panic("verification failed")
 	}
@@ -115,6 +133,6 @@ func prove() {
 }
 
 func main() {
-	// setup()
+	setup()
 	prove()
 }

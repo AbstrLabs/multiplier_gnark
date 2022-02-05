@@ -3,8 +3,11 @@ module github.com/abstrlabs/multiplier_gnark
 go 1.17
 
 require (
-	github.com/consensys/gnark v0.6.0 // indirect
-	github.com/consensys/gnark-crypto v0.6.1-0.20220110145513-493bb1c180d9 // indirect
+	github.com/consensys/gnark v0.6.2
+	github.com/consensys/gnark-crypto v0.6.1-0.20220110145513-493bb1c180d9
+)
+
+require (
 	github.com/fxamacker/cbor/v2 v2.2.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
